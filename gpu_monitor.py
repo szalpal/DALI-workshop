@@ -14,7 +14,7 @@ def get_gpu_utilization():
     except:
         return [0]  # Return 0 if nvidia-smi fails
 
-def draw_histogram(data, width=50, height=20):
+def draw_histogram(data, width=100, height=20):
     """Draw a histogram in the terminal"""
     # Calculate histogram
     hist, bins = np.histogram(data, bins=width, range=(0, 100))
@@ -56,7 +56,7 @@ def main():
             # Draw histogram
             draw_histogram(list(data))
             
-            time.sleep(0.5)  # Update every 0.5 seconds
+            time.sleep(0.3)  # Update every 0.3 seconds
             
     except KeyboardInterrupt:
         print("\nExiting...")

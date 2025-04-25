@@ -66,7 +66,7 @@ def train_rn50(
         train_dataset,
         batch_size=batch_size,
         shuffle=True,
-        num_workers=4
+        num_workers=1
     )
     
     # Initialize model

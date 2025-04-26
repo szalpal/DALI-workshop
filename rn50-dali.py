@@ -25,14 +25,32 @@ from torchvision import models, transforms, datasets
 from torch.utils.data import DataLoader
 import time
 from tqdm import tqdm
+import argparse
+from nvidia.dali.pipeline import pipeline_def
+from nvidia.dali.plugin.pytorch import DALIClassificationIterator
+import nvidia.dali.fn as fn
+import nvidia.dali.types as types
+
+@pipeline_def(batch_size=32, num_threads=4, device_id=0)
+def rn50_pipeline(data_dir: str):
+    images, labels = fn.readers.file(file_root=data_dir)
+    images = fn.decoders.image(images, device="mixed")
+    images = fn.resize(images, size=224)
+    images = fn.crop_mirror_normalize(images,
+                                           dtype=types.FLOAT,
+                                           output_layout="CHW",
+                                           crop=(224, 224),
+                                           mean=[0.485 * 255, 0.456 * 255, 0.406 * 255],
+                                           std=[0.229 * 255, 0.224 * 255, 0.225 * 255]) 
+    return images, labels
 
 def train_rn50(
     data_dir: str,
     num_epochs: int = 10,
     batch_size: int = 32,
     learning_rate: float = 0.001,
-    num_classes: int = 1000,
-    device: str = "cuda" if torch.cuda.is_available() else "cpu"
+    num_classes: int = 10,
+    device: str = "cuda"
 ) -> nn.Module:
     """
     Train a ResNet50 model on the specified dataset.
@@ -47,30 +65,11 @@ def train_rn50(
     
     Returns:
         nn.Module: Trained ResNet50 model
-    """
-    # Data transformations
-    transform = transforms.Compose([
-        transforms.Resize(256),
-        transforms.CenterCrop(224),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-    ])
-    
-    # Load dataset
-    train_dataset = datasets.ImageFolder(
-        root=data_dir,
-        transform=transform
-    )
-    
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=batch_size,
-        shuffle=True,
-        num_workers=1
-    )
+    """    
+    train_loader = DALIClassificationIterator(rn50_pipeline(data_dir), size=len(data_dir))
     
     # Initialize model
-    model = models.resnet50(pretrained=True)
+    model = models.resnet50()
     model.fc = nn.Linear(model.fc.in_features, num_classes)
     model = model.to(device)
     
@@ -81,13 +80,12 @@ def train_rn50(
     # Training loop
     for epoch in range(num_epochs):
         model.train()
-        total = 0
         epoch_start_time = time.time()
         total_images = 0
         
         progress_bar = tqdm(train_loader, desc=f'Epoch {epoch+1}/{num_epochs}')
         
-        for batch_idx, (inputs, labels) in enumerate(progress_bar):
+        for inputs, labels in progress_bar:
             batch_start_time = time.time()
             inputs, labels = inputs.to(device), labels.to(device)
             
@@ -125,10 +123,12 @@ def train_rn50(
     return model
 
 if __name__ == "__main__":
-    # Example usage
+    parser = argparse.ArgumentParser(description='Train ResNet50 model')
+    parser.add_argument('--data-dir', type=str, required=True,
+                      help='Path to the dataset directory')
+    
+    args = parser.parse_args()
+    
     model = train_rn50(
-        data_dir="/home/mszolucha/workspace/workshop-DALI/train_data/train",
-        num_epochs=10,
-        batch_size=32,
-        learning_rate=0.001
+        data_dir=args.data_dir,
     )

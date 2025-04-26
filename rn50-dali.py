@@ -89,7 +89,7 @@ def train_rn50(
         for input_data in progress_bar:
             batch_start_time = time.time()
             inputs = input_data[0]['data']
-            labels = input_data[0]['label']
+            labels = input_data[0]['label'].squeeze()
             import ipdb; ipdb.set_trace()
             
             # Zero the parameter gradients
@@ -175,7 +175,7 @@ if __name__ == "__main__":
     )
 
     # Run inference on a random sample
-    infer_random_sample(model, args.data_dir, device)
+    infer_random_sample(model, args.data_dir, 'cuda:0')
 
     # Save the trained model
     torch.save(model.state_dict(), 'resnet50_trained.pth')

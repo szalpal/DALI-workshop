@@ -31,9 +31,10 @@ from nvidia.dali.plugin.pytorch import DALIClassificationIterator
 import nvidia.dali.fn as fn
 import nvidia.dali.types as types
 
-@pipeline_def(batch_size=32, num_threads=4, device_id=0)
+@pipeline_def(batch_size=1024, num_threads=16, device_id=0)
 def rn50_pipeline(data_dir: str):
-    images, labels = fn.readers.file(file_root=data_dir)
+    images, labels = fn.readers.file(file_root=data_dir, random_shuffle=True)
+    labels = fn.reshape(labels, shape=[-1]).gpu()
     images = fn.decoders.image(images, device="mixed")
     images = fn.resize(images, size=224)
     images = fn.crop_mirror_normalize(images,
@@ -47,7 +48,7 @@ def rn50_pipeline(data_dir: str):
 def train_rn50(
     data_dir: str,
     num_epochs: int = 10,
-    batch_size: int = 32,
+    batch_size: int = 1024,
     learning_rate: float = 0.001,
     num_classes: int = 10,
     device: str = "cuda"
@@ -85,9 +86,11 @@ def train_rn50(
         
         progress_bar = tqdm(train_loader, desc=f'Epoch {epoch+1}/{num_epochs}')
         
-        for inputs, labels in progress_bar:
+        for input_data in progress_bar:
             batch_start_time = time.time()
-            inputs, labels = inputs.to(device), labels.to(device)
+            inputs = input_data[0]['data']
+            labels = input_data[0]['label']
+            import ipdb; ipdb.set_trace()
             
             # Zero the parameter gradients
             optimizer.zero_grad()
@@ -122,6 +125,44 @@ def train_rn50(
     
     return model
 
+
+def infer_random_sample(model, data_dir, device):
+    """
+    Run inference on a random sample from the dataset.
+    
+    Args:
+        model (nn.Module): Trained model
+        data_dir (str): Path to dataset directory
+        device (str): Device to run inference on
+    """
+    # Setup transforms
+    transform = transforms.Compose([
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    ])
+    
+    # Load dataset
+    dataset = datasets.ImageFolder(data_dir, transform=transform)
+    random_idx = torch.randint(0, len(dataset), (1,)).item()
+    sample_image, ground_truth = dataset[random_idx]
+    
+    # Run inference
+    model.eval()
+    with torch.no_grad():
+        input_batch = sample_image.unsqueeze(0).to(device)
+        output = model(input_batch)
+        _, predicted = torch.max(output, 1)
+        
+        # Get class names
+        class_names = dataset.classes
+        
+        print("\nInference on random sample:")
+        print(f"Ground truth: {class_names[ground_truth]}")
+        print(f"Model prediction: {class_names[predicted.item()]}")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train ResNet50 model')
     parser.add_argument('--data-dir', type=str, required=True,
@@ -132,3 +173,10 @@ if __name__ == "__main__":
     model = train_rn50(
         data_dir=args.data_dir,
     )
+
+    # Run inference on a random sample
+    infer_random_sample(model, args.data_dir, device)
+
+    # Save the trained model
+    torch.save(model.state_dict(), 'resnet50_trained.pth')
+    print("Model saved to resnet50_trained.pth")

@@ -90,7 +90,6 @@ def train_rn50(
             batch_start_time = time.time()
             inputs = input_data[0]['data']
             labels = input_data[0]['label'].squeeze()
-            import ipdb; ipdb.set_trace()
             
             # Zero the parameter gradients
             optimizer.zero_grad()

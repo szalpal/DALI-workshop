@@ -30,7 +30,7 @@ import argparse
 def train_rn50(
     data_dir: str,
     num_epochs: int = 10,
-    batch_size: int = 32,
+    batch_size: int = 1024,
     learning_rate: float = 0.001,
     num_classes: int = 10,
     device: str = "cuda"

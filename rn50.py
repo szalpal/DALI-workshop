@@ -85,7 +85,7 @@ def train_rn50(
         
         progress_bar = tqdm(train_loader, desc=f'Epoch {epoch+1}/{num_epochs}')
         
-        for batch_idx, (inputs, labels) in enumerate(progress_bar):
+        for inputs, labels in progress_bar:
             batch_start_time = time.time()
             inputs, labels = inputs.to(device), labels.to(device)
             

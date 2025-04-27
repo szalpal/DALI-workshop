@@ -30,7 +30,7 @@ import argparse
 def train_rn50(
     data_dir: str,
     num_epochs: int = 10,
-    batch_size: int = 1024,
+    batch_size: int = 256,
     learning_rate: float = 0.001,
     num_classes: int = 10,
     device: str = "cuda"
@@ -87,7 +87,6 @@ def train_rn50(
         progress_bar = tqdm(train_loader, desc=f'Epoch {epoch+1}/{num_epochs}')
         
         for batch_idx, (inputs, labels) in enumerate(progress_bar):
-            import ipdb ; ipdb.set_trace()
             batch_start_time = time.time()
             inputs, labels = inputs.to(device), labels.to(device)
             
@@ -123,6 +122,42 @@ def train_rn50(
         print(f'Total Time: {epoch_time:.2f} seconds')
     
     return model
+
+def infer_random_sample(model, data_dir, device):
+    """
+    Run inference on a random sample from the dataset.
+    
+    Args:
+        model (nn.Module): Trained model
+        data_dir (str): Path to dataset directory
+        device (str): Device to run inference on
+    """
+    # Setup transforms
+    transform = transforms.Compose([
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    ])
+    
+    # Load dataset
+    dataset = datasets.ImageFolder(data_dir, transform=transform)
+    random_idx = torch.randint(0, len(dataset), (1,)).item()
+    sample_image, ground_truth = dataset[random_idx]
+    
+    # Run inference
+    model.eval()
+    with torch.no_grad():
+        input_batch = sample_image.unsqueeze(0).to(device)
+        output = model(input_batch)
+        _, predicted = torch.max(output, 1)
+        
+        # Get class names
+        class_names = dataset.classes
+        
+        print("\nInference on random sample:")
+        print(f"Ground truth: {class_names[ground_truth]}")
+        print(f"Model prediction: {class_names[predicted.item()]}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train ResNet50 model')

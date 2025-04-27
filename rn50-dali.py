@@ -31,7 +31,7 @@ from nvidia.dali.plugin.pytorch import DALIClassificationIterator
 import nvidia.dali.fn as fn
 import nvidia.dali.types as types
 
-@pipeline_def(batch_size=1024, num_threads=16, device_id=0)
+@pipeline_def(batch_size=256, num_threads=16, device_id=0)
 def rn50_pipeline(data_dir: str):
     images, labels = fn.readers.file(file_root=data_dir, random_shuffle=True)
     labels = fn.reshape(labels, shape=[-1]).gpu()
@@ -48,7 +48,7 @@ def rn50_pipeline(data_dir: str):
 def train_rn50(
     data_dir: str,
     num_epochs: int = 10,
-    batch_size: int = 1024,
+    batch_size: int = 256,
     learning_rate: float = 0.001,
     num_classes: int = 10,
     device: str = "cuda"

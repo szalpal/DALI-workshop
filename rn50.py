@@ -30,7 +30,7 @@ import argparse
 def train_rn50(
     data_dir: str,
     num_epochs: int = 10,
-    batch_size: int = 256,
+    batch_size: int = 64,
     learning_rate: float = 0.001,
     num_classes: int = 10,
     device: str = "cuda"
@@ -51,8 +51,7 @@ def train_rn50(
     """
     # Data transformations
     transform = transforms.Compose([
-        transforms.Resize(256),
-        transforms.CenterCrop(224),
+        transforms.Resize(224),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
@@ -169,3 +168,10 @@ if __name__ == "__main__":
     model = train_rn50(
         data_dir=args.data_dir,
     )
+
+    # Run inference on a random sample
+    infer_random_sample(model, args.data_dir, 'cuda:0')
+
+    # Save the trained model
+    torch.save(model.state_dict(), 'resnet50_trained.pth')
+    print("Model saved to resnet50_trained.pth")

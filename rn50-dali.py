@@ -99,10 +99,8 @@ def train_rn50(
         epoch_start_time = time.time()
         total_images = 0
 
-        progress_bar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{num_epochs}")
-
-        for batch_idx, data in enumerate(progress_bar):
-            print(f"\n[DEBUG] Epoch {epoch+1}, Batch {batch_idx+1} - Starting batch")
+        for data in train_loader:
+            print(f"\n[DEBUG] Epoch {epoch+1} - Starting batch")
             batch_start_time = time.time()
             print(f"[DEBUG] Raw batch data keys: {list(data[0].keys())}")
             inputs, labels = data[0]["images"], data[0]["labels"].flatten()
@@ -133,9 +131,6 @@ def train_rn50(
 
             print(f"[DEBUG] Batch time: {batch_time:.4f} seconds")
             print(f"[DEBUG] Throughput: {batch_throughput:.1f} images/second")
-
-            # Update progress bar
-            progress_bar.set_postfix({"imgs/s": f"{batch_throughput:.1f}", "loss": f"{loss.item():.4f}"})
 
             total_images += batch_size
 

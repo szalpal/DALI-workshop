@@ -87,13 +87,14 @@ def train_rn50(
             optimizer.step()
 
             # Calculate throughput
+            assert labels.size(0) == batch_size, f"Batch size mismatch: got {labels.size(0)}, expected {batch_size}"
             batch_end_time = time.time()
             batch_time = batch_end_time - batch_start_time
-            batch_throughput = labels.size(0) / batch_time
+            batch_throughput = batch_size / batch_time
             
             print(f'Throughput: {batch_throughput:.1f} images/second')
             
-            total_images += labels.size(0)
+            total_images += batch_size
         
         # Calculate epoch statistics
         epoch_time = time.time() - epoch_start_time

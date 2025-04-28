@@ -30,8 +30,8 @@ import nvtx
 
 def train_rn50(
     data_dir: str,
+    batch_size: int,
     num_epochs: int = 10,
-    batch_size: int = 64,
     learning_rate: float = 0.001,
     num_classes: int = 10,
     device: str = "cuda"
@@ -84,12 +84,14 @@ def train_rn50(
         epoch_start_time = time.time()
         total_images = 0
         
-        progress_bar = tqdm(train_loader, desc=f'Epoch {epoch+1}/{num_epochs}')
+        train_iter = iter(train_loader)
+
+        progress_bar = tqdm(range(len(train_loader)), desc=f'Epoch {epoch+1}/{num_epochs}')
         
         while True:
             try:
                 nvtx.push_range("Get next batch")
-                inputs, labels = next(iter(train_loader))
+                inputs, labels = next(train_iter)
                 nvtx.pop_range()
             except StopIteration:
                 nvtx.pop_range()
@@ -101,12 +103,16 @@ def train_rn50(
             optimizer.zero_grad()
             
             # Forward pass
+            nvtx.push_range("Forward pass")
             outputs = model(inputs)
             loss = criterion(outputs, labels)
+            nvtx.pop_range()
             
             # Backward pass and optimize
+            nvtx.push_range("Backward pass")
             loss.backward()
             optimizer.step()
+            nvtx.pop_range()
 
             # Calculate throughput
             assert labels.size(0) == batch_size
@@ -171,11 +177,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train ResNet50 model')
     parser.add_argument('--data-dir', type=str, required=True,
                       help='Path to the dataset directory')
+    parser.add_argument('--batch-size', type=int, default=64,
+                      help='Batch size for training')
     
     args = parser.parse_args()
     
     model = train_rn50(
         data_dir=args.data_dir,
+        batch_size=args.batch_size
     )
 
     # Run inference on a random sample

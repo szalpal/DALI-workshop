@@ -29,8 +29,8 @@ import argparse
 
 def train_rn50(
     data_dir: str,
+    batch_size: int,
     num_epochs: int = 10,
-    batch_size: int = 64,
     learning_rate: float = 0.001,
     num_classes: int = 10,
     device: str = "cuda"
@@ -162,11 +162,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train ResNet50 model')
     parser.add_argument('--data-dir', type=str, required=True,
                       help='Path to the dataset directory')
+    parser.add_argument('--batch-size', type=int, default=64,
+                      help='Batch size for training')
     
     args = parser.parse_args()
     
     model = train_rn50(
         data_dir=args.data_dir,
+        batch_size=args.batch_size
     )
 
     # Run inference on a random sample

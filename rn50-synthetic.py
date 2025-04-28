@@ -27,9 +27,9 @@ import time
 from tqdm import tqdm
 import argparse
 
-def train_iter(batch_size):
+def train_iter(batch_size, num_classes):
     synth_input = torch.randn(batch_size, 3, 224, 224)
-    synth_label = torch.randint(0, 1000, (batch_size,))
+    synth_label = torch.randint(0, num_classes, (batch_size,))
     while True:
         yield synth_input, synth_label
 
@@ -71,7 +71,7 @@ def train_rn50(
         total_images = 0
         
         
-        for inputs, labels in train_iter(batch_size):
+        for inputs, labels in train_iter(batch_size, num_classes):
             batch_start_time = time.time()
             inputs, labels = inputs.to(device), labels.to(device)
             

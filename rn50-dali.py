@@ -31,13 +31,19 @@ import time
 from tqdm import tqdm
 import argparse
 
+print("[DEBUG] Imports completed")
 
 @pipeline_def
 def dali_pipeline(data_dir):
+    print(f"[DEBUG] Creating DALI pipeline for data_dir: {data_dir}")
     images, labels = fn.readers.file(file_root=data_dir, random_shuffle=True)
+    print("[DEBUG] DALI file reader created")
     images = fn.decoders.image(images, device="mixed", output_type=types.RGB)
+    print("[DEBUG] DALI image decoder created")
     labels = fn.cast(labels, dtype=types.INT64).gpu()
+    print("[DEBUG] DALI labels cast to INT64 and moved to GPU")
     images = fn.resize(images, resize_x=224, resize_y=224)
+    print("[DEBUG] DALI image resize to 224x224")
     images = fn.crop_mirror_normalize(
         images,
         dtype=types.FLOAT,
@@ -46,12 +52,16 @@ def dali_pipeline(data_dir):
         mean=[0.485 * 255, 0.456 * 255, 0.406 * 255],
         std=[0.229 * 255, 0.224 * 255, 0.225 * 255],
     )
+    print("[DEBUG] DALI crop, mirror, normalize applied")
     return images, labels
 
 
 def dali(data_dir, batch_size):
+    print(f"[DEBUG] Initializing DALI pipeline with batch_size: {batch_size}")
     pipe = dali_pipeline(data_dir, batch_size=batch_size, num_threads=1, device_id=0)
+    print("[DEBUG] DALI pipeline instance created")
     iterator = DALIGenericIterator(pipe, ["images", "labels"])
+    print("[DEBUG] DALIGenericIterator created")
     return iterator
 
 
@@ -63,33 +73,28 @@ def train_rn50(
     num_classes: int = 10,
     device: str = "cuda",
 ) -> nn.Module:
-    """
-    Train a ResNet50 model on the specified dataset.
-
-    Args:
-        data_dir (str): Path to the dataset directory
-        num_epochs (int): Number of training epochs
-        batch_size (int): Batch size for training
-        learning_rate (float): Learning rate for the optimizer
-        num_classes (int): Number of output classes
-        device (str): Device to train on ('cuda' or 'cpu')
-
-    Returns:
-        nn.Module: Trained ResNet50 model
-    """
+    print(f"[DEBUG] Starting train_rn50 with data_dir={data_dir}, batch_size={batch_size}, num_epochs={num_epochs}, learning_rate={learning_rate}, num_classes={num_classes}, device={device}")
     train_loader = dali(data_dir, batch_size)
+    print("[DEBUG] DALI train_loader created")
 
     # Initialize model
+    print("[DEBUG] Initializing ResNet50 model")
     model = models.resnet50()
+    print("[DEBUG] ResNet50 model created")
     model.fc = nn.Linear(model.fc.in_features, num_classes)
+    print(f"[DEBUG] Replaced final FC layer with {num_classes} outputs")
     model = model.to(device)
+    print(f"[DEBUG] Model moved to device: {device}")
 
     # Loss function and optimizer
     criterion = nn.CrossEntropyLoss()
+    print("[DEBUG] CrossEntropyLoss created")
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+    print("[DEBUG] Adam optimizer created")
 
     # Training loop
     for epoch in range(num_epochs):
+        print(f"[DEBUG] Starting epoch {epoch+1}/{num_epochs}")
         model.train()
         epoch_start_time = time.time()
         total_images = 0
@@ -99,8 +104,10 @@ def train_rn50(
         for batch_idx, data in enumerate(progress_bar):
             print(f"\n[DEBUG] Epoch {epoch+1}, Batch {batch_idx+1} - Starting batch")
             batch_start_time = time.time()
+            print(f"[DEBUG] Raw batch data keys: {list(data[0].keys())}")
             inputs, labels = data[0]["images"], data[0]["labels"].flatten()
-            print(f"[DEBUG] Inputs shape: {inputs.shape}, Labels shape: {labels.shape}")
+            print(f"[DEBUG] Inputs shape: {inputs.shape}, dtype: {inputs.dtype}, device: {inputs.device}")
+            print(f"[DEBUG] Labels shape: {labels.shape}, dtype: {labels.dtype}, device: {labels.device}")
 
             # Zero the parameter gradients
             optimizer.zero_grad()
@@ -108,7 +115,7 @@ def train_rn50(
 
             # Forward pass
             outputs = model(inputs)
-            print(f"[DEBUG] Forward pass done. Outputs shape: {outputs.shape}")
+            print(f"[DEBUG] Forward pass done. Outputs shape: {outputs.shape}, dtype: {outputs.dtype}, device: {outputs.device}")
             loss = criterion(outputs, labels)
             print(f"[DEBUG] Loss computed: {loss.item()}")
 
@@ -119,16 +126,16 @@ def train_rn50(
             print("[DEBUG] Optimizer step done")
 
             # Calculate throughput
-            assert labels.size(0) == batch_size
+            assert labels.size(0) == batch_size, f"[DEBUG] Batch size mismatch: got {labels.size(0)}, expected {batch_size}"
             batch_end_time = time.time()
             batch_time = batch_end_time - batch_start_time
             batch_throughput = batch_size / batch_time
 
             print(f"[DEBUG] Batch time: {batch_time:.4f} seconds")
-            print(f'Throughput: {batch_throughput:.1f} images/second')
+            print(f"[DEBUG] Throughput: {batch_throughput:.1f} images/second")
 
             # Update progress bar
-            progress_bar.set_postfix({"imgs/s": f"{batch_throughput:.1f}"})
+            progress_bar.set_postfix({"imgs/s": f"{batch_throughput:.1f}", "loss": f"{loss.item():.4f}"})
 
             total_images += batch_size
 
@@ -136,22 +143,16 @@ def train_rn50(
         epoch_time = time.time() - epoch_start_time
         epoch_throughput = total_images / epoch_time
 
-        print(f"\nEpoch {epoch+1} Summary:")
-        print(f"Throughput: {epoch_throughput:.1f} images/second")
-        print(f"Total Time: {epoch_time:.2f} seconds")
+        print(f"\n[DEBUG] Epoch {epoch+1} Summary:")
+        print(f"[DEBUG] Throughput: {epoch_throughput:.1f} images/second")
+        print(f"[DEBUG] Total Time: {epoch_time:.2f} seconds")
 
+    print("[DEBUG] Training complete")
     return model
 
 
 def infer_random_sample(model, data_dir, device):
-    """
-    Run inference on a random sample from the dataset.
-
-    Args:
-        model (nn.Module): Trained model
-        data_dir (str): Path to dataset directory
-        device (str): Device to run inference on
-    """
+    print(f"[DEBUG] Running inference on a random sample from {data_dir} using device {device}")
     # Setup transforms
     transform = transforms.Compose(
         [
@@ -163,16 +164,23 @@ def infer_random_sample(model, data_dir, device):
     )
 
     # Load dataset
+    print("[DEBUG] Loading ImageFolder dataset for inference")
     dataset = datasets.ImageFolder(data_dir, transform=transform)
+    print(f"[DEBUG] Dataset loaded with {len(dataset)} samples, classes: {dataset.classes}")
     random_idx = torch.randint(0, len(dataset), (1,)).item()
+    print(f"[DEBUG] Randomly selected index: {random_idx}")
     sample_image, ground_truth = dataset[random_idx]
+    print(f"[DEBUG] Sample image shape: {sample_image.shape}, ground truth label: {ground_truth}")
 
     # Run inference
     model.eval()
     with torch.no_grad():
         input_batch = sample_image.unsqueeze(0).to(device)
+        print(f"[DEBUG] Input batch shape: {input_batch.shape}, device: {input_batch.device}")
         output = model(input_batch)
+        print(f"[DEBUG] Model output: {output}")
         _, predicted = torch.max(output, 1)
+        print(f"[DEBUG] Predicted class index: {predicted.item()}")
 
         # Get class names
         class_names = dataset.classes
@@ -183,6 +191,7 @@ def infer_random_sample(model, data_dir, device):
 
 
 if __name__ == "__main__":
+    print("[DEBUG] Parsing command line arguments")
     parser = argparse.ArgumentParser(description="Train ResNet50 model")
     parser.add_argument(
         "--data-dir", type=str, required=True, help="Path to the dataset directory"
@@ -192,6 +201,7 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+    print(f"[DEBUG] Arguments received: data_dir={args.data_dir}, batch_size={args.batch_size}")
 
     model = train_rn50(
         data_dir=args.data_dir,
@@ -203,4 +213,4 @@ if __name__ == "__main__":
 
     # Save the trained model
     torch.save(model.state_dict(), "resnet50_trained.pth")
-    print("Model saved to resnet50_trained.pth")
+    print("[DEBUG] Model saved to resnet50_trained.pth")

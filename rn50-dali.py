@@ -97,25 +97,35 @@ def train_rn50(
         progress_bar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{num_epochs}")
 
         for batch_idx, data in enumerate(progress_bar):
+            print(f"\n[DEBUG] Epoch {epoch+1}, Batch {batch_idx+1} - Starting batch")
             batch_start_time = time.time()
             inputs, labels = data[0]["images"], data[0]["labels"].flatten()
+            print(f"[DEBUG] Inputs shape: {inputs.shape}, Labels shape: {labels.shape}")
 
             # Zero the parameter gradients
             optimizer.zero_grad()
+            print("[DEBUG] Gradients zeroed")
 
             # Forward pass
             outputs = model(inputs)
+            print(f"[DEBUG] Forward pass done. Outputs shape: {outputs.shape}")
             loss = criterion(outputs, labels)
+            print(f"[DEBUG] Loss computed: {loss.item()}")
 
             # Backward pass and optimize
             loss.backward()
+            print("[DEBUG] Backward pass done")
             optimizer.step()
+            print("[DEBUG] Optimizer step done")
 
             # Calculate throughput
             assert labels.size(0) == batch_size
             batch_end_time = time.time()
             batch_time = batch_end_time - batch_start_time
             batch_throughput = batch_size / batch_time
+
+            print(f"[DEBUG] Batch time: {batch_time:.4f} seconds")
+            print(f'Throughput: {batch_throughput:.1f} images/second')
 
             # Update progress bar
             progress_bar.set_postfix({"imgs/s": f"{batch_throughput:.1f}"})

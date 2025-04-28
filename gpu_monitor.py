@@ -32,9 +32,9 @@ def get_gpu_utilization():
         return [0]  # Return 0 if nvidia-smi fails
 
 def draw_histogram(data, width=100, height=20):
-    """Draw a histogram in the terminal"""
+    """Draw a horizontal histogram in the terminal using '#'"""
     # Calculate histogram
-    hist, bins = np.histogram(data, bins=width, range=(0, 100))
+    hist, bins = np.histogram(data, bins=height, range=(0, 100))
     
     # Find maximum count for scaling
     max_count = max(hist) if len(hist) > 0 else 1
@@ -42,18 +42,17 @@ def draw_histogram(data, width=100, height=20):
     # Clear screen and move cursor to top
     print("\033[2J\033[H", end="")
     
-    # Draw histogram
-    for i in range(height, 0, -1):
-        line = ""
-        for count in hist:
-            if count >= (i * max_count / height):
-                line += "█"
-            else:
-                line += " "
-        print(line)
+    # Draw histogram horizontally
+    for i in range(height):
+        bin_start = int(bins[i])
+        bin_end = int(bins[i+1])
+        bar_length = int((hist[i] / max_count) * width) if max_count > 0 else 0
+        bar = "#" * bar_length
+        print(f"{bin_start:2d}-{bin_end:2d}% | {bar}")
     
-    # Draw x-axis
-    print("0%" + " " * (width-4) + "100%")
+    # Show x-axis
+    print(" " * 8 + "-" * width)
+    print(" " * 8 + "0%" + " " * (width//2 - 2) + "50%" + " " * (width//2 - 2) + "100%")
     
     # Show current utilization
     current_util = data[-1] if data else 0
